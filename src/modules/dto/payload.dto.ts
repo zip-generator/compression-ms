@@ -4,9 +4,8 @@ interface ProcessedData {
 }
 
 // Define el tipo del grupo por fecha y tipo
-interface DataGroupedByDate {
-  [fecha: string]: {
-    [tipoDte: string]: ProcessedData[];
-  };
+export interface IData {
+  [key: string]: ProcessedData[];
 }
-export { ProcessedData, DataGroupedByDate };
+
+export { ProcessedData };
