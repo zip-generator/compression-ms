@@ -18,7 +18,6 @@ interface IPartialUploadFile {
   baseConfig: IConfigFile;
   accessKeyId: string;
   secretAccessKey: string;
-  endPoint?: string;
 }
 
 interface IS3Client {
@@ -49,7 +48,6 @@ export class AwsService {
     accessKeyId,
     secretAccessKey,
     region,
-    endPoint,
   }: IS3Client): S3Client {
     return new S3Client({
       credentials: {
@@ -57,7 +55,6 @@ export class AwsService {
         secretAccessKey,
       },
       region,
-      endpoint: endPoint,
     });
   }
 
@@ -66,18 +63,11 @@ export class AwsService {
     folder,
     fileName,
   }: IUploadFile): Promise<PutObjectCommandOutput> {
-    // const fileNameArray = file.originalname.split('.');
-    // const extension = fileNameArray.pop();
-    // const fileName = fileNameArray.shift();
-    // const pathFile = folder
-    //   ? `${folder}/${fileName}-${getRandomUuid()}.${extension}`
-    //   : `${fileName}-${getRandomUuid()}.${extension}`;
-
     const pathFile = `${folder}/${fileName}`;
     const uploadParams = {
       Bucket: envs.awsBucketName,
       Key: pathFile,
-      buffer: zipFile,
+      Body: zipFile,
     };
 
     const command = new PutObjectCommand(uploadParams);

@@ -23,7 +23,7 @@ export class ZipServiceArchiver {
     } catch (error) {
       this.#logger.warn(
         'Error creating zip file in createInMemoryZipAndCleanup:',
-        error,
+        { error },
       );
       throw new RpcException({
         status: HttpStatus.INTERNAL_SERVER_ERROR,
@@ -49,12 +49,13 @@ export class ZipServiceArchiver {
       for (const dateKey in data) {
         this.#logger.log('Processing dateKey:', dateKey);
         const clientData: T[] = data[dateKey];
-        for (const tipoFac in clientData) {
-          for (const file of clientData[tipoFac] as T[]) {
+        for (const tipoDte in clientData) {
+          for (const file of clientData[tipoDte] as T[]) {
             const fileName = `${file?.['identificacion']?.['codigoGeneracion']}.pdf`;
             const fileContent = file?.['buffer'] ?? Buffer.alloc(0);
-            archive.append(fileContent, {
-              name: path.join(dateKey.toString(), tipoFac.toString(), fileName),
+
+            archive.append(Buffer.from(fileContent), {
+              name: path.join(dateKey.toString(), tipoDte.toString(), fileName),
             });
           }
         }

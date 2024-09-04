@@ -1,13 +1,14 @@
-import { Controller, Logger } from '@nestjs/common';
+import { Controller, Logger, HttpStatus } from '@nestjs/common';
 
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { MessagePattern, Payload, RpcException } from '@nestjs/microservices';
 import { PDF_CREATED } from './config';
 
 import { ZipServiceArchiver } from './modules/zip/zip-archiver.service';
-import { IData } from './interfaces';
 import { AwsService } from './modules/upload/aws.service';
 import { Folders } from './enums';
 import { PayloadDto } from './dto';
+import { getRandomUuid } from './utils';
+const delimiter = '-';
 
 @Controller()
 export class AppController {
@@ -19,16 +20,24 @@ export class AppController {
 
   @MessagePattern(PDF_CREATED)
   async compresionFiles(@Payload() payload: PayloadDto) {
-    const data = await this.compression.createInMemoryZipAndCleanup({
-      data: payload.data as IData<any>,
-    });
+    try {
+      const data: Buffer = await this.compression.createInMemoryZipAndCleanup({
+        data: payload.data.data,
+      });
 
-    this.awsService.uploadFile({
-      zipFile: data,
-      folder: Folders.PDF,
-      fileName: 'pdfs.zip',
-    });
-    this.#logger.log('Compresion de archivos');
-    return payload;
+      this.#logger.debug('uploading file to s3');
+      await this.awsService.uploadFile({
+        zipFile: data,
+        folder: Folders.PDF,
+        fileName: `${payload.jobId}${delimiter}${getRandomUuid()}.zip`,
+      });
+      return {
+        message: 'Files compressed and uploaded to S3',
+        status: HttpStatus.OK,
+      };
+    } catch (error) {
+      this.#logger.error('error compressing files', { error });
+      throw new RpcException(error);
+    }
   }
 }
