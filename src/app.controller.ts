@@ -49,12 +49,6 @@ export class AppController {
 
   @MessagePattern(ZIP_COMPLETED)
   async getZip(@Payload('key') key: string): Promise<string> {
-    const data = await this.awsService.downloadFile(key);
-
-    this.#logger.debug('file downloaded from s3', {
-      key,
-      data,
-    });
-    return data;
+    return await this.awsService.downloadFile(key);
   }
 }
