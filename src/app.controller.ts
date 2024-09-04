@@ -1,7 +1,7 @@
 import { Controller, Logger, HttpStatus } from '@nestjs/common';
 
 import { MessagePattern, Payload, RpcException } from '@nestjs/microservices';
-import { PDF_CREATED } from './config';
+import { PDF_CREATED, ZIP_COMPLETED } from './config';
 
 import { ZipServiceArchiver } from './modules/zip/zip-archiver.service';
 import { AwsService } from './modules/upload/aws.service';
@@ -21,23 +21,40 @@ export class AppController {
   @MessagePattern(PDF_CREATED)
   async compresionFiles(@Payload() payload: PayloadDto) {
     try {
-      const data: Buffer = await this.compression.createInMemoryZipAndCleanup({
+      this.#logger.debug('compressing files');
+      const data = await this.compression.createInMemoryZipAndCleanup({
         data: payload.data.data,
       });
 
       this.#logger.debug('uploading file to s3');
-      await this.awsService.uploadFile({
+      const fileName = `${payload.jobId}${delimiter}${getRandomUuid()}.zip`;
+      const response = await this.awsService.uploadFile({
         zipFile: data,
         folder: Folders.PDF,
-        fileName: `${payload.jobId}${delimiter}${getRandomUuid()}.zip`,
+        fileName,
+      });
+      this.#logger.debug('file uploaded to s3', {
+        response,
       });
       return {
         message: 'Files compressed and uploaded to S3',
         status: HttpStatus.OK,
+        data: response,
       };
     } catch (error) {
       this.#logger.error('error compressing files', { error });
       throw new RpcException(error);
     }
+  }
+
+  @MessagePattern(ZIP_COMPLETED)
+  async getZip(@Payload('key') key: string): Promise<string> {
+    const data = await this.awsService.downloadFile(key);
+
+    this.#logger.debug('file downloaded from s3', {
+      key,
+      data,
+    });
+    return data;
   }
 }

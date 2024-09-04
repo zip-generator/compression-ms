@@ -4,10 +4,12 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
-  PutObjectCommandOutput,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { envs } from '@app/config';
 
+const expiesIn = 300; // is 300 seconds = 5 minutes
 interface IConfigFile {
   bucketName: string;
   region: string;
@@ -62,7 +64,7 @@ export class AwsService {
     zipFile,
     folder,
     fileName,
-  }: IUploadFile): Promise<PutObjectCommandOutput> {
+  }: IUploadFile): Promise<{ url: string; key: string }> {
     const pathFile = `${folder}/${fileName}`;
     const uploadParams = {
       Bucket: envs.awsBucketName,
@@ -71,34 +73,21 @@ export class AwsService {
     };
 
     const command = new PutObjectCommand(uploadParams);
-    const response = await this.s3Client.send(command);
-    return response;
+    await this.s3Client.send(command);
+    const url = this.getObjectUrl(pathFile);
+    return {
+      url,
+      key: pathFile,
+    };
   }
 
-  // async getFiles({
-  //   baseConfig,
-  //   accessKeyId,
-  //   secretAccessKey,
-  //   endPoint,
-  //   fileKey,
-  // }: IPartialUploadFile): Promise<Readable> {
-  //   const s3Client = this.createS3Client({
-  //     accessKeyId,
-  //     secretAccessKey,
-  //     region,
-  //     endPoint,
-  //   });
-  //   await this.headObjectAws(baseConfig.bucketName, fileKey, s3Client);
-
-  //   const getObjectParams = {
-  //     Bucket: baseConfig.bucketName,
-  //     Key: fileKey,
-  //   };
-
-  //   const command = new GetObjectCommand(getObjectParams);
-  //   const response = await s3Client.send(command);
-  //   return response.Body as Readable;
-  // }
+  downloadFile(key: string): Promise<string> {
+    const comand = new GetObjectCommand({
+      Bucket: envs.awsBucketName,
+      Key: key,
+    });
+    return getSignedUrl(this.s3Client, comand, { expiresIn: expiesIn });
+  }
 
   async deleteObjectAws({ fileKey }: IPartialUploadFile) {
     await this.headObjectAws(envs.awsBucketName, fileKey);
@@ -121,5 +110,8 @@ export class AwsService {
 
     const command = new HeadObjectCommand(headObjectParams);
     return await this.s3Client.send(command);
+  }
+  private getObjectUrl(key: string): string {
+    return `https://${envs.awsBucketName}.s3.${envs.awsRegion}.amazonaws.com/${key}`;
   }
 }
