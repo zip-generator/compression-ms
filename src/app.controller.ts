@@ -24,25 +24,25 @@ export class AppController {
       this.#logger.debug('compressing files', {
         payload,
       });
-      // const data = await this.compression.createInMemoryZipAndCleanup({
-      //   data: payload.data.data,
-      // });
+      const data = await this.compression.createInMemoryZipAndCleanup({
+        data: payload.data.data,
+        jobId: payload.jobId.toString(),
+      });
 
       this.#logger.debug('uploading file to s3');
-      // const fileName = `${payload.jobId}${delimiter}${getRandomUuid()}.zip`;
-      // const response = await this.awsService.uploadFile({
-      //   zipFile: data,
-      //   folder: Folders.PDF,
-      //   fileName,
-      // });
-      // this.#logger.debug('file uploaded to s3', {
-      //   response,
-      // });
+      const fileName = `${payload.jobId}${delimiter}${getRandomUuid()}.zip`;
+      const response = await this.awsService.uploadFile({
+        zipFile: data,
+        folder: Folders.PDF,
+        fileName,
+      });
+      this.#logger.debug('file uploaded to s3', {});
       return {
         message: 'Files compressed and uploaded to S3',
         status: HttpStatus.OK,
         data: {
           ok: true,
+          awsKey: response.key,
         },
       };
     } catch (error) {

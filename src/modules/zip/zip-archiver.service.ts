@@ -2,12 +2,15 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import * as Archiver from 'archiver';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
 import { IData } from '../../interfaces';
 import { RpcException } from '@nestjs/microservices';
 import { PassThrough } from 'stream';
 
 interface IZipProps<T> {
   data: IData<T>;
+  jobId: string;
 }
 @Injectable()
 export class ZipServiceArchiver {
@@ -15,10 +18,11 @@ export class ZipServiceArchiver {
 
   async createInMemoryZipAndCleanup<T>({
     data,
+    jobId,
   }: IZipProps<T>): Promise<Buffer> {
     try {
       this.#logger.warn('Creating zip file...');
-      const zipBuffer = await this.createZipInMemory<T>({ data });
+      const zipBuffer = await this.createZipStream<T>({ data, jobId });
       this.#logger.log('Zip file created successfully');
 
       return zipBuffer;
@@ -34,39 +38,10 @@ export class ZipServiceArchiver {
     }
   }
 
-  private async createZipInMemory<T>({ data }: IZipProps<T>): Promise<Buffer> {
-    this.#logger.warn('Creating zip in memory...');
-
-    const archive = Archiver('zip', { zlib: { level: 9 } });
-    const buffers: Buffer[] = [];
-
-    return new Promise<Buffer>((resolve, reject) => {
-      archive.on('data', (chunk: Buffer) => buffers.push(chunk));
-      archive.on('end', () => resolve(Buffer.concat(buffers)));
-      archive.on('error', (error) => {
-        this.#logger.error('Error creating zip file:', error);
-        reject(error);
-      });
-      // Add files to the archive
-      for (const dateKey in data) {
-        this.#logger.log('Processing dateKey:', dateKey);
-        const clientData: T[] = data[dateKey];
-        for (const tipoDte in clientData) {
-          for (const file of clientData[tipoDte] as T[]) {
-            const fileName = `${file?.['identificacion']?.['codigoGeneracion']}.pdf`;
-            const fileContent = file?.['buffer'] ?? Buffer.alloc(0);
-
-            archive.append(Buffer.from(fileContent), {
-              name: path.join(dateKey.toString(), tipoDte.toString(), fileName),
-            });
-          }
-        }
-      }
-      this.#logger.warn('Finalizing archive...');
-      return archive.finalize();
-    });
-  }
-  private async createZipStream<T>({ data }: IZipProps<T>): Promise<Buffer> {
+  private async createZipStream<T>({
+    data,
+    jobId,
+  }: IZipProps<T>): Promise<Buffer> {
     this.#logger.warn('Creating zip in stream...');
 
     const archive = Archiver('zip', { zlib: { level: 9 } });
@@ -75,7 +50,10 @@ export class ZipServiceArchiver {
 
     return new Promise<Buffer>((resolve, reject) => {
       passThrough.on('data', (chunk: Buffer) => buffers.push(chunk));
-      passThrough.on('end', () => resolve(Buffer.concat(buffers)));
+      passThrough.on('end', async () => {
+        await this.cleanUpTempFolder(jobId);
+        resolve(Buffer.concat(buffers));
+      });
       passThrough.on('error', (error) => {
         this.#logger.error('Error creating zip file:', error);
         reject(error);
@@ -85,14 +63,19 @@ export class ZipServiceArchiver {
 
       // Añadir archivos al archivo zip
       for (const dateKey in data) {
-        this.#logger.log('Processing dateKey:', dateKey);
         const clientData: T[] = data[dateKey];
         for (const tipoDte in clientData) {
           for (const file of clientData[tipoDte] as T[]) {
             const fileName = `${file?.['identificacion']?.['codigoGeneracion']}.pdf`;
-            const fileContent = file?.['buffer'] ?? Buffer.alloc(0);
-
-            archive.append(fileContent, {
+            const filePath = path.join(
+              process.cwd(),
+              'temp-data',
+              jobId,
+              fileName,
+            );
+            this.#logger.log(`Adding file to archive: ${filePath}`);
+            const fileStream = fs.createReadStream(filePath);
+            archive.append(fileStream, {
               name: path.join(dateKey.toString(), tipoDte.toString(), fileName),
             });
           }
@@ -102,5 +85,17 @@ export class ZipServiceArchiver {
       this.#logger.warn('Finalizing archive...');
       archive.finalize();
     });
+  }
+  private async cleanUpTempFolder(folderPath: string): Promise<void> {
+    try {
+      const fullFolderPath = path.join(process.cwd(), 'temp-data', folderPath); // Ruta completa de la carpeta
+      await fsPromises.rm(fullFolderPath, { recursive: true, force: true });
+      this.#logger.log(`Temporary folder cleaned up: ${fullFolderPath}`);
+    } catch (err) {
+      this.#logger.error(
+        `Error cleaning up temporary folder: ${folderPath}`,
+        err,
+      );
+    }
   }
 }
