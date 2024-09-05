@@ -21,25 +21,29 @@ export class AppController {
   @MessagePattern(PDF_CREATED)
   async compresionFiles(@Payload() payload: PayloadDto) {
     try {
-      this.#logger.debug('compressing files');
-      const data = await this.compression.createInMemoryZipAndCleanup({
-        data: payload.data.data,
+      this.#logger.debug('compressing files', {
+        payload,
       });
+      // const data = await this.compression.createInMemoryZipAndCleanup({
+      //   data: payload.data.data,
+      // });
 
       this.#logger.debug('uploading file to s3');
-      const fileName = `${payload.jobId}${delimiter}${getRandomUuid()}.zip`;
-      const response = await this.awsService.uploadFile({
-        zipFile: data,
-        folder: Folders.PDF,
-        fileName,
-      });
-      this.#logger.debug('file uploaded to s3', {
-        response,
-      });
+      // const fileName = `${payload.jobId}${delimiter}${getRandomUuid()}.zip`;
+      // const response = await this.awsService.uploadFile({
+      //   zipFile: data,
+      //   folder: Folders.PDF,
+      //   fileName,
+      // });
+      // this.#logger.debug('file uploaded to s3', {
+      //   response,
+      // });
       return {
         message: 'Files compressed and uploaded to S3',
         status: HttpStatus.OK,
-        data: response,
+        data: {
+          ok: true,
+        },
       };
     } catch (error) {
       this.#logger.error('error compressing files', { error });
