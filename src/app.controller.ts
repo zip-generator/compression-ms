@@ -21,9 +21,7 @@ export class AppController {
   @MessagePattern(PDF_CREATED)
   async compresionFiles(@Payload() payload: PayloadDto) {
     try {
-      this.#logger.debug('compressing files', {
-        payload,
-      });
+      this.#logger.debug('compressing files', {});
       const data = await this.compression.createInMemoryZipAndCleanup({
         data: payload.data.data,
         jobId: payload.jobId.toString(),
