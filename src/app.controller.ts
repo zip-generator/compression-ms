@@ -21,9 +21,10 @@ export class AppController {
   @MessagePattern(PDF_CREATED)
   async compresionFiles(@Payload() payload: PayloadDto) {
     try {
-      this.#logger.debug('compressing files');
+      this.#logger.debug('compressing files', {});
       const data = await this.compression.createInMemoryZipAndCleanup({
         data: payload.data.data,
+        jobId: payload.jobId.toString(),
       });
 
       this.#logger.debug('uploading file to s3');
@@ -33,13 +34,14 @@ export class AppController {
         folder: Folders.PDF,
         fileName,
       });
-      this.#logger.debug('file uploaded to s3', {
-        response,
-      });
+      this.#logger.debug('file uploaded to s3', {});
       return {
         message: 'Files compressed and uploaded to S3',
         status: HttpStatus.OK,
-        data: response,
+        data: {
+          ok: true,
+          awsKey: response.key,
+        },
       };
     } catch (error) {
       this.#logger.error('error compressing files', { error });
