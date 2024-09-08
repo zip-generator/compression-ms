@@ -14,6 +14,7 @@ const readFileFromPath = async (
     const data = await fs.promises.readFile(filePath, 'utf-8');
     return JSON.parse(data);
   } catch (err) {
+    console.log(err);
     console.log(`Failed to read file: ${filePath}`, err);
     throw err;
   }
