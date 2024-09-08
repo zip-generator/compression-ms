@@ -1,6 +1,7 @@
 import { IData, InvoiceType } from '@app/interfaces';
 import { randomUUID, UUID } from 'crypto';
 import * as fs from 'fs';
+import { rimraf } from 'rimraf';
 
 const getRandomUuid = (): UUID => {
   return randomUUID();
@@ -18,12 +19,21 @@ const readFileFromPath = async (
   }
 };
 
-const rmFile = async (filePath: string): Promise<void> => {
-  try {
-    await fs.promises.unlink(filePath);
-  } catch (err) {
-    console.log(`Failed to remove file: ${filePath}`, err);
-    throw err;
-  }
+const rmFile = (filePath: string): Promise<void> => {
+  const dir = filePath.slice(0, filePath.lastIndexOf('/'));
+  return new Promise((resolve, reject) => {
+    rimraf(dir, {})
+      .then((resp) => {
+        if (!resp) {
+          reject(new Error('Failed to remove file'));
+          return;
+        }
+
+        resolve();
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
 };
 export { getRandomUuid, readFileFromPath, rmFile };
