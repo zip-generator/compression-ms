@@ -7,7 +7,7 @@ import { ZipServiceArchiver } from './modules/zip/zip-archiver.service';
 import { AwsService } from './modules/upload/aws.service';
 import { Folders } from './enums';
 import { PayloadDto } from './dto';
-import { getRandomUuid } from './utils';
+import { getRandomUuid, readFileFromPath, rmFile } from './utils';
 const delimiter = '-';
 
 @Controller()
@@ -22,8 +22,9 @@ export class AppController {
   async compresionFiles(@Payload() payload: PayloadDto) {
     try {
       this.#logger.debug('compressing files', {});
+      const dataFromFile = await readFileFromPath(payload.data.fileName);
       const data = await this.compression.createInMemoryZipAndCleanup({
-        data: payload.data.data,
+        data: dataFromFile,
         jobId: payload.jobId.toString(),
       });
 
@@ -35,6 +36,7 @@ export class AppController {
         fileName,
       });
       this.#logger.debug('file uploaded to s3', {});
+      await rmFile(payload.data.fileName);
       return {
         message: 'Files compressed and uploaded to S3',
         status: HttpStatus.OK,

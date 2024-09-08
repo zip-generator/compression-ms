@@ -1,18 +1,19 @@
-import { IsNumber, IsObject, IsDefined, ValidateNested } from 'class-validator';
+// DTO para IPayload
+import { IsNumber, IsDefined, ValidateNested, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 // DTO para IData
-export class IDataDto<T> {
-  @IsObject()
-  data: { [key: string]: T[] };
+export class DataDto {
+  @IsString()
+  fileName: string;
 }
 
 // DTO para IPayload
 export class PayloadDto {
   @IsDefined()
-  @ValidateNested({ each: true }) // Validación de un objeto anidado
-  @Type(() => IDataDto) // Indica que `data` es del tipo `IDataDto`
-  data: IDataDto<unknown>;
+  @ValidateNested({ each: true })
+  @Type(() => DataDto)
+  data: DataDto;
 
   @IsNumber()
   jobId: number;
