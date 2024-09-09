@@ -73,7 +73,6 @@ export class ZipServiceArchiver {
               jobId,
               fileName,
             );
-            this.#logger.log(`Adding file to archive: ${filePath}`);
             const fileStream = fs.createReadStream(filePath);
             archive.append(fileStream, {
               name: path.join(dateKey.toString(), tipoDte.toString(), fileName),
